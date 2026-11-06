@@ -43,6 +43,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .lvl .title{color:var(--muted);font-size:14px;margin-top:3px}
 .xpbar{height:8px;border-radius:99px;background:var(--track);margin-top:10px;position:relative;overflow:hidden}
 .xpbar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--indigo),var(--blue));transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.rnext{font-size:12px;color:var(--muted);margin-top:8px}.rnext b{color:var(--ink);font-variant-numeric:tabular-nums}
 .xptext{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
 .stat{background:var(--glass-strong);border:1px solid var(--edge);border-radius:16px;padding:10px 12px}
@@ -118,6 +119,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
         <div class="title" id="rtitle">Rank E · Awakened</div>
         <div class="xpbar"><i id="xpfill" style="width:0"></i></div>
         <div class="xptext"><span id="xpnow">0 / 60 XP</span><span id="xptot">Total 0</span></div>
+        <div class="rnext" id="rnext"></div>
       </div>
     </div>
     <div class="stats">
@@ -140,7 +142,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
     <div class="week" id="week"></div>
   </section>
 
-  <div class="foot">+10 XP per quest · +25 XP bonus when every quest is done</div>
+  <div class="foot">+10 XP per quest · +25 XP when every quest is done<br>Rank comes from fully done days in the last 60: D 5 · C 15 · B 30 · A 45 · S 57</div>
 </div>
 
 <div class="sheet" id="sheet" hidden>
@@ -172,12 +174,13 @@ const DEFAULTS = [
   {id:"q4",name:"Sleep before 11 PM"}
 ];
 const RANKS = [
-  {r:"E",min:1, t:"Awakened",  c:"#8e8e93"},
+  /* rank = days with every quest done, counted over the last 60 days */
+  {r:"E",min:0, t:"Awakened",  c:"#8e8e93"},
   {r:"D",min:5, t:"Hunter",    c:"#30d158"},
-  {r:"C",min:12,t:"Veteran",   c:"#0a84ff"},
-  {r:"B",min:25,t:"Elite",     c:"#5e5ce6"},
+  {r:"C",min:15,t:"Veteran",   c:"#0a84ff"},
+  {r:"B",min:30,t:"Elite",     c:"#5e5ce6"},
   {r:"A",min:45,t:"Vanguard",  c:"#bf5af2"},
-  {r:"S",min:70,t:"Monarch",   c:"#ff9f0a"}
+  {r:"S",min:57,t:"Monarch",   c:"#ff9f0a"}
 ];
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2,"0");
@@ -217,7 +220,9 @@ function totalXP(){
   return xp+Object.keys(S.clears).length*25;
 }
 function levelInfo(xp){ let L=1,need=60; while(xp>=need){ xp-=need; L++; need=50+10*L; } return {L,into:xp,need}; }
-function rankOf(L){ let r=RANKS[0]; for(const x of RANKS) if(L>=x.min) r=x; return r; }
+const WINDOW=60;
+function clearedRecent(){ const t=parse(today()); let n=0; for(let i=0;i<WINDOW;i++) if(S.clears[key(addDays(t,-i))]) n++; return n; }
+function rankOf(n){ let r=RANKS[0]; for(const x of RANKS) if(n>=x.min) r=x; return r; }
 function runBack(has){ let d=parse(today()); if(!has(key(d))) d=addDays(d,-1); let n=0; while(has(key(d))){ n++; d=addDays(d,-1); } return n; }
 function streak(){ return runBack(k=>!!S.clears[k]); }
 function questStreak(id){ return runBack(k=>(S.log[k]||[]).includes(id)); }
@@ -243,13 +248,17 @@ function line(label,p,color){
   return `<div class="row"><div class="lbl"><span>${label}</span><b>${v}%</b></div><div class="track"><i style="width:${v}%;background:${color}"></i></div></div>`;
 }
 function render(){
-  const xp=totalXP(), li=levelInfo(xp), rk=rankOf(li.L);
+  const xp=totalXP(), li=levelInfo(xp), cr=clearedRecent(), rk=rankOf(cr);
   $("rankL").textContent=rk.r; $("rank").style.setProperty("--rk",rk.c);
   $("lv").textContent=li.L;
   $("rtitle").textContent="Rank "+rk.r+" · "+rk.t;
   $("xpfill").style.width=(li.into/li.need*100)+"%";
   $("xpnow").textContent=li.into+" / "+li.need+" XP";
   $("xptot").textContent="Total "+xp.toLocaleString();
+  const nx=RANKS[RANKS.indexOf(rk)+1];
+  $("rnext").innerHTML = nx
+    ? `<b>${cr}</b> of last ${WINDOW} days fully done · <b>${nx.min-cr}</b> more for Rank ${nx.r}`
+    : `<b>${cr}</b> of last ${WINDOW} days fully done · keep it to stay S`;
   $("streak").textContent=streak();
   $("best").textContent=bestStreak();
   $("days").textContent=Object.keys(S.log).filter(k=>(S.log[k]||[]).length).length;
@@ -295,7 +304,7 @@ setInterval(()=>{ tick(); if(today()!==lastDay){ lastDay=today(); render(); } },
 $("quests").addEventListener("click",e=>{
   const b=e.target.closest(".quest"); if(!b) return;
   const id=b.dataset.id, k=today();
-  const before=levelInfo(totalXP()).L;
+  const before=levelInfo(totalXP()).L, rBefore=rankOf(clearedRecent());
   const arr=S.log[k]||(S.log[k]=[]); const i=arr.indexOf(id);
   const adding=i<0;
   if(adding) arr.push(id); else arr.splice(i,1);
@@ -307,14 +316,14 @@ $("quests").addEventListener("click",e=>{
     if(nb){ const f=document.createElement("span"); f.className="float"; f.textContent=nowClear&&!wasClear?"+35 XP":"+10 XP"; nb.appendChild(f); setTimeout(()=>f.remove(),1000); }
     if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){}
   }
-  const after=levelInfo(totalXP()).L;
-  if(after>before) levelUp(before,after);
+  const after=levelInfo(totalXP()).L, rAfter=rankOf(clearedRecent());
+  const rankUp=RANKS.indexOf(rAfter)>RANKS.indexOf(rBefore);
+  if(after>before||rankUp) levelUp(before,after,rankUp?rBefore:null,rAfter);
 });
 let lvTimer;
-function levelUp(a,b){
-  const ra=rankOf(a), rb=rankOf(b);
-  $("lvupT").textContent="LEVEL UP";
-  $("lvupP").innerHTML = rb.r!==ra.r ? `Level ${b} · Rank <b>${ra.r} → ${rb.r}</b> · ${esc(rb.t)}` : `You reached level <b>${b}</b>`;
+function levelUp(a,b,ra,rb){
+  $("lvupT").textContent = ra ? "RANK UP" : "LEVEL UP";
+  $("lvupP").innerHTML = ra ? `Rank <b>${ra.r} → ${rb.r}</b> · ${esc(rb.t)}` : `You reached level <b>${b}</b>`;
   $("lvup").hidden=false; clearTimeout(lvTimer); lvTimer=setTimeout(()=>$("lvup").hidden=true,2600);
 }
 $("lvup").addEventListener("click",()=>$("lvup").hidden=true);
