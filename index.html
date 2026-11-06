@@ -101,6 +101,15 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .primary{background:linear-gradient(135deg,var(--crimson),var(--ember));color:#fff;border:none;font:600 16px var(--f);padding:11px 18px;border-radius:14px;cursor:pointer}
 .sheet .note{font-size:12px;color:var(--muted);margin-top:10px}
 .done-btn{width:100%;margin-top:16px}
+.backup-btn{justify-self:center}
+.flabel{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
+.field{width:100%;box-sizing:border-box;background:var(--glass);border:1px solid var(--edge);color:var(--ink);font:500 16px var(--f);padding:11px 14px;border-radius:14px}
+.field:focus{outline:none;border-color:var(--crimson)}
+.field.code{font:12px ui-monospace,Menlo,monospace;resize:vertical;margin-top:8px}
+.brow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.brow>*{flex:1 1 auto}
+.divider{height:1px;background:var(--hair);margin:18px 0 12px}
+#bsheet .panel{max-height:88vh;overflow:auto}
 
 .lvup{position:fixed;inset:0;display:grid;place-items:center;z-index:30;background:rgba(0,0,0,.3);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer;padding:16px}
 .lvup .card{text-align:center;padding:30px 40px;border-radius:32px;background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--edge);box-shadow:inset 0 1px 0 var(--shine),var(--shadow);animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
@@ -146,7 +155,27 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
     <div class="week" id="week"></div>
   </section>
 
+  <button class="ghost backup-btn" id="backupBtn" type="button">Backup</button>
   <div class="foot">+10 XP per quest · +25 XP when every quest is done<br>Rank comes from fully done days in the last 60: D 5 · C 15 · B 30 · A 45 · S 57</div>
+</div>
+
+<div class="sheet" id="bsheet" hidden>
+  <div class="panel" role="dialog" aria-label="Backup">
+    <div class="eyebrow"><span>Backup</span><span class="dim" id="bstatus">Not connected</span></div>
+    <p class="note">Connect a private GitHub repo once. After that, every tick is saved there automatically, plus one dated copy per day.</p>
+    <label class="flabel" for="bRepo">Private repo</label>
+    <input class="field" id="bRepo" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="lovishbangarh22-rgb/ascend-data">
+    <label class="flabel" for="bToken">GitHub token</label>
+    <input class="field" id="bToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…">
+    <div class="brow"><button class="primary" id="bConnect" type="button">Connect &amp; back up now</button></div>
+    <div class="brow"><button class="ghost" id="bRestore" type="button">Restore from GitHub</button><button class="ghost" id="bOff" type="button">Disconnect</button></div>
+    <div class="divider"></div>
+    <div class="eyebrow"><span>Backup code</span><span class="dim">No GitHub needed</span></div>
+    <textarea class="field code" id="bCode" rows="3" placeholder="Tap Copy code to get your backup, or paste a code here to restore."></textarea>
+    <div class="brow"><button class="ghost" id="bCopy" type="button">Copy code</button><button class="ghost" id="bPaste" type="button">Restore from code</button></div>
+    <p class="note" id="bMsg" role="status"></p>
+    <button class="primary done-btn" id="bDone" type="button">Done</button>
+  </div>
 </div>
 
 <div class="sheet" id="sheet" hidden>
@@ -362,40 +391,96 @@ $("addForm").addEventListener("submit",e=>{
 });
 
 /* ---------- saving ---------- */
-let ref=null, saving=false, again=false, timer;
+/* Every change saves on the phone at once. If a private GitHub repo is connected,
+   it also uploads progress.json (latest) and backups/YYYY-MM-DD.json (one per day). */
+const CFG="ascend-backup-v1";
+let cfg={}; try{ cfg=JSON.parse(localStorage.getItem(CFG))||{}; }catch(e){}
+let timer, busy=false, again=false;
 function setSync(t){ $("sync").textContent=t; }
+function saveCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catch(e){} }
 function saveLocal(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch(e){} }
-function save(){ S.updated=Date.now(); saveLocal(); clearTimeout(timer); timer=setTimeout(push,500); }
+function save(){ S.updated=Date.now(); saveLocal(); clearTimeout(timer); timer=setTimeout(push,1500); }
+const b64=str=>btoa(unescape(encodeURIComponent(str)));
+const unb64=str=>decodeURIComponent(escape(atob(str.replace(/\s/g,""))));
+async function gh(path,opts={}){
+  const r=await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${path}`,{...opts,
+    headers:{Authorization:"Bearer "+cfg.token,Accept:"application/vnd.github+json","Content-Type":"application/json"},cache:"no-store"});
+  if(r.status===404) return null;
+  if(!r.ok){ const e=new Error("GitHub said "+r.status); e.status=r.status; throw e; }
+  return r.json();
+}
+async function putFile(path,obj,msg){
+  const cur=await gh(path);
+  await gh(path,{method:"PUT",body:JSON.stringify({message:msg,content:b64(JSON.stringify(obj,null,1)),sha:cur?cur.sha:undefined})});
+}
+function stamp(t){ if(!t) return "never"; const d=new Date(t); return (key(d)===today()?"today ":d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" ")+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+function showStatus(){
+  const on=!!(cfg.repo&&cfg.token);
+  setSync(on?(cfg.err?"Backup failed":"Backed up "+stamp(cfg.last)):"Saved on this device");
+  $("bstatus").textContent=on?(cfg.err?cfg.err:"Last backup "+stamp(cfg.last)):"Not connected";
+}
 async function push(){
-  if(!ref) return;
-  if(saving){ again=true; return; }
-  saving=true;
-  try{ await ref.set(JSON.parse(JSON.stringify(S))); setSync("Saved"); }
-  catch(e){ setSync("Saved on this device"); }
-  saving=false;
+  if(!(cfg.repo&&cfg.token)) return;
+  if(busy){ again=true; return; }
+  busy=true;
+  try{
+    await putFile("progress.json",S,"Progress "+today());
+    if(cfg.day!==today()){ await putFile("backups/"+today()+".json",S,"Daily backup "+today()); cfg.day=today(); }
+    cfg.last=Date.now(); cfg.err="";
+  }catch(e){ cfg.err = e.status===401||e.status===403 ? "Token not accepted. Make a new one." : e.status===404 ? "Repo not found. Check the name." : "Offline. Will retry."; }
+  saveCfg(); showStatus(); busy=false;
   if(again){ again=false; push(); }
 }
-async function initDb(){
-  const use = window.claude && window.claude.use;
-  if(!use){ setSync("Saved on this device"); return; }
-  const to=setTimeout(()=>setSync("Saved on this device"),10000);
-  try{
-    const [user,db]=await Promise.all([window.claude.use("user"),window.claude.use("db")]);
-    if(!user||!db){ clearTimeout(to); setSync("Saved on this device"); return; }
-    const id=await user.id();
-    if(!id){ clearTimeout(to); setSync("Saved on this device"); return; }
-    ref=db.doc("data/users/"+id+"/state");
-    const snap=await ref.get(); clearTimeout(to);
-    if(snap.exists){
-      const remote=normalize(snap.data());
-      if(remote.updated>=S.updated){ S=remote; saveLocal(); render(); setSync("Saved"); }
-      else push();
-    } else { if(!S.updated) S.updated=Date.now(); push(); }
-  }catch(e){ clearTimeout(to); setSync("Saved on this device"); }
+async function pullRemote(force){
+  const f=await gh("progress.json"); if(!f) return false;
+  const remote=normalize(JSON.parse(unb64(f.content)));
+  if(force||remote.updated>S.updated){ S=remote; saveLocal(); render(); return true; }
+  return false;
 }
+async function initBackup(){
+  showStatus();
+  if(!(cfg.repo&&cfg.token)) return;
+  try{ const got=await pullRemote(false); if(!got) push(); }catch(e){ push(); }
+}
+/* backup sheet */
+function msg(t){ $("bMsg").textContent=t; }
+$("backupBtn").addEventListener("click",()=>{ $("bRepo").value=cfg.repo||"lovishbangarh22-rgb/ascend-data"; $("bToken").value=cfg.token||""; $("bCode").value=""; msg(""); showStatus(); $("bsheet").hidden=false; });
+$("bDone").addEventListener("click",()=>{ $("bsheet").hidden=true; });
+$("bsheet").addEventListener("click",e=>{ if(e.target===$("bsheet")) $("bsheet").hidden=true; });
+$("bConnect").addEventListener("click",async()=>{
+  const repo=$("bRepo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\.git$/,"").replace(/\/$/,""), token=$("bToken").value.trim();
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ msg("Enter the repo as owner/name."); return; }
+  if(!token){ msg("Paste your GitHub token."); return; }
+  cfg={repo,token}; saveCfg(); msg("Connecting…");
+  try{
+    let restored=false;
+    const f=await gh("progress.json");
+    if(f){ const remote=normalize(JSON.parse(unb64(f.content)));
+      if(remote.updated>S.updated){ S=remote; saveLocal(); render(); restored=true; }
+    }
+    cfg.day=""; await push();
+    if(!cfg.err) msg(restored?"Connected. Restored your newer progress from GitHub.":"Connected and backed up. It will now back up automatically.");
+    else msg(cfg.err);
+  }catch(e){ cfg.err= e.status===404?"Repo not found. Check the name.":"Token not accepted. Check it has Contents: Read and write."; saveCfg(); showStatus(); msg(cfg.err); }
+});
+$("bRestore").addEventListener("click",async()=>{
+  if(!(cfg.repo&&cfg.token)){ msg("Connect first."); return; }
+  try{ msg((await pullRemote(true))?"Restored from GitHub.":"No backup found in the repo yet."); }catch(e){ msg("Couldn't reach GitHub."); }
+});
+$("bOff").addEventListener("click",()=>{ cfg={}; saveCfg(); $("bToken").value=""; showStatus(); msg("Disconnected. Your progress stays on this phone."); });
+$("bCopy").addEventListener("click",async()=>{
+  const code=b64(JSON.stringify(S)); $("bCode").value=code;
+  try{ await navigator.clipboard.writeText(code); msg("Copied. Paste it into Notes to keep it safe."); }
+  catch(e){ $("bCode").select(); msg("Select the code above and copy it."); }
+});
+$("bPaste").addEventListener("click",()=>{
+  try{ const r=normalize(JSON.parse(unb64($("bCode").value.trim()))); if(!r.quests.length&&!Object.keys(r.log).length) throw 0;
+    S=r; S.updated=Date.now(); save(); render(); msg("Restored from code."); }
+  catch(e){ msg("That code didn't work. Paste the whole code."); }
+});
 
 render();
-initDb();
+initBackup();
 })();
 </script>
 
