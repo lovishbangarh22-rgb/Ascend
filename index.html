@@ -43,7 +43,9 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .lvl .title{color:var(--muted);font-size:14px;margin-top:3px}
 .xpbar{height:8px;border-radius:99px;background:var(--track);margin-top:10px;position:relative;overflow:hidden}
 .xpbar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--indigo),var(--blue));transition:width .7s cubic-bezier(.2,.8,.2,1)}
-.rnext{font-size:12px;color:var(--muted);margin-top:8px}.rnext b{color:var(--ink);font-variant-numeric:tabular-nums}
+.rbar{height:4px;border-radius:99px;background:var(--track);margin-top:8px;position:relative;overflow:hidden}
+.rbar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--rk,var(--blue));transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.rnext{font-size:12px;color:var(--muted);margin-top:5px;display:flex;justify-content:space-between;gap:8px}.rnext b{color:var(--ink);font-variant-numeric:tabular-nums}
 .xptext{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
 .stat{background:var(--glass-strong);border:1px solid var(--edge);border-radius:16px;padding:10px 12px}
@@ -119,6 +121,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
         <div class="title" id="rtitle">Rank E · Awakened</div>
         <div class="xpbar"><i id="xpfill" style="width:0"></i></div>
         <div class="xptext"><span id="xpnow">0 / 60 XP</span><span id="xptot">Total 0</span></div>
+        <div class="rbar" aria-hidden="true"><i id="rfill" style="width:0"></i></div>
         <div class="rnext" id="rnext"></div>
       </div>
     </div>
@@ -256,9 +259,12 @@ function render(){
   $("xpnow").textContent=li.into+" / "+li.need+" XP";
   $("xptot").textContent="Total "+xp.toLocaleString();
   const nx=RANKS[RANKS.indexOf(rk)+1];
+  const lo=rk.min, hi=nx?nx.min:WINDOW;
+  $("rfill").style.width=Math.min(100,(cr-lo)/(hi-lo)*100)+"%";
+  $("rfill").style.setProperty("--rk",rk.c);
   $("rnext").innerHTML = nx
-    ? `<b>${cr}</b> of last ${WINDOW} days fully done · <b>${nx.min-cr}</b> more for Rank ${nx.r}`
-    : `<b>${cr}</b> of last ${WINDOW} days fully done · keep it to stay S`;
+    ? `<span>Rank ${rk.r} → ${nx.r}: <b>${cr-lo} / ${hi-lo}</b> days</span><span><b>${nx.min-cr}</b> to go</span>`
+    : `<span>Rank S: <b>${cr} / ${WINDOW}</b> days</span><span>Stay above ${rk.min}</span>`;
   $("streak").textContent=streak();
   $("best").textContent=bestStreak();
   $("days").textContent=Object.keys(S.log).filter(k=>(S.log[k]||[]).length).length;
