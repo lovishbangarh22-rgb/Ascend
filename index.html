@@ -150,7 +150,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
   </section>
 
   <section class="panel" aria-label="Progress">
-    <div class="eyebrow"><span>Progress</span><span class="dim">Quests completed</span></div>
+    <div class="eyebrow"><span>Progress</span><span class="dim">Week and month fill up as you go</span></div>
     <div class="lines" id="lines"></div>
     <div class="week" id="week"></div>
   </section>
@@ -247,6 +247,13 @@ function pct(from,to){
   for(let d=new Date(a); d<=b; d=addDays(d,1)){ done+=doneOn(key(d)); tot+=S.quests.length; }
   return tot?done/tot:0;
 }
+/* share of the WHOLE period filled so far (week = 7 days, month = all its days) */
+function fill(from,days){
+  if(!S.quests.length) return 0;
+  const t=parse(today()); let done=0;
+  for(let i=0;i<days;i++){ const d=addDays(from,i); if(d>t) break; done+=doneOn(key(d)); }
+  return done/(S.quests.length*days);
+}
 function totalXP(){
   let xp=0;
   for(const k in S.log) xp+=(S.log[k]||[]).length*10;
@@ -315,8 +322,8 @@ function render(){
   const mStart=new Date(t.getFullYear(),t.getMonth(),1);
   $("lines").innerHTML =
     line("Today",pct(t,t),"linear-gradient(90deg,#30d158,#64d2ff)")+
-    line("This week",pct(wkStart,t),"linear-gradient(90deg,#0a84ff,#5e5ce6)")+
-    line("This month",pct(mStart,t),"linear-gradient(90deg,#bf5af2,#ff375f)")+
+    line("This week",fill(wkStart,7),"linear-gradient(90deg,#0a84ff,#5e5ce6)")+
+    line("This month",fill(mStart,new Date(t.getFullYear(),t.getMonth()+1,0).getDate()),"linear-gradient(90deg,#bf5af2,#ff375f)")+
     line("All time",pct(parse(S.start),t),"linear-gradient(90deg,#ff2d55,#ff9f0a)");
 
   const names=["M","T","W","T","F","S","S"]; let wk="";
