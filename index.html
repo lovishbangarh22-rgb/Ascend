@@ -75,6 +75,11 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 @keyframes up{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-28px)}}
 .clear{margin-top:12px;padding:12px;border-radius:16px;text-align:center;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--green),#20b2aa);box-shadow:0 6px 18px color-mix(in srgb,var(--green) 35%,transparent)}
 .empty{color:var(--muted);padding:12px 0}
+.qdetail{display:block;font-size:13px;font-weight:400;color:var(--ink);opacity:.8;margin-top:4px;line-height:1.45;white-space:pre-line}
+.quest.on .qdetail{opacity:.5}
+.coach{margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--crimson) 14%,transparent),color-mix(in srgb,var(--ember) 8%,transparent));border:1px solid color-mix(in srgb,var(--crimson) 30%,transparent)}
+.coach b{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--crimson)}
+.coach p{margin:4px 0 0;font-size:14px;line-height:1.45;white-space:pre-line}
 
 .lines{display:grid;gap:16px;margin-top:14px}
 .row .lbl{display:flex;justify-content:space-between;font-size:14px;font-weight:500;margin-bottom:7px}
@@ -145,6 +150,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
   <section class="panel" aria-label="Today's quests">
     <div class="eyebrow"><span id="date">Daily quest</span><span class="dim">Resets in <span id="cd">--:--:--</span></span></div>
     <div class="qhead"><h2>Today's quests</h2><button class="ghost" id="editBtn" type="button">Edit</button></div>
+    <div class="coach" id="coach" hidden><b>Coach</b><p id="coachNote"></p></div>
     <div class="quests" id="quests"></div>
     <div id="clear"></div>
   </section>
@@ -228,10 +234,11 @@ function normalize(s){
   const f=fresh();
   if(!s||typeof s!=="object") return f;
   return {v:1,
-    quests:Array.isArray(s.quests)?s.quests.filter(q=>q&&q.id&&q.name).map(q=>({id:String(q.id),name:String(q.name)})):f.quests,
+    quests:Array.isArray(s.quests)?s.quests.filter(q=>q&&q.id&&q.name).map(q=>({id:String(q.id),name:String(q.name),...(q.detail?{detail:String(q.detail)}:{})})):f.quests,
     log:(s.log&&typeof s.log==="object")?JSON.parse(JSON.stringify(s.log)):{},
     clears:(s.clears&&typeof s.clears==="object")?{...s.clears}:{},
     start:typeof s.start==="string"?s.start:f.start,
+    coachSig:typeof s.coachSig==="string"?s.coachSig:"", coachNote:typeof s.coachNote==="string"?s.coachNote:"",
     updated:Number(s.updated)||0};
 }
 let S;
@@ -313,9 +320,10 @@ function render(){
     const on=doneSet.has(q.id), s=questStreak(q.id), p=Math.round(questPct30(q.id)*100);
     return `<button class="quest${on?" on":""}" type="button" data-id="${esc(q.id)}" aria-pressed="${on}">
       <span class="box">${CHECK}</span>
-      <span class="qname">${esc(q.name)}<span class="qmeta">${s} day streak · ${p}% last 30 days</span><span class="qline"><i style="width:${p}%"></i></span></span>
+      <span class="qname">${esc(q.name)}${q.detail?`<span class="qdetail">${esc(q.detail)}</span>`:""}<span class="qmeta">${s} day streak · ${p}% last 30 days</span><span class="qline"><i style="width:${p}%"></i></span></span>
       <span class="xpchip">${on?"Done":"+10 XP"}</span></button>`;
   }).join("") : `<div class="empty">No quests yet. Tap Edit to add your first one.</div>`;
+  $("coach").hidden=!S.coachNote; $("coachNote").textContent=S.coachNote||"";
   $("clear").innerHTML = S.clears[k] ? `<div class="clear">All quests done · +25 bonus XP</div>` : "";
 
   const t=parse(k), dow=(t.getDay()+6)%7, wkStart=addDays(t,-dow);
@@ -341,7 +349,7 @@ function tick(){
   $("cd").textContent=pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60);
 }
 let lastDay=today();
-setInterval(()=>{ tick(); if(today()!==lastDay){ lastDay=today(); render(); } },1000);
+setInterval(()=>{ tick(); if(today()!==lastDay){ lastDay=today(); applyCoach(); render(); } },1000);
 
 /* ---------- actions ---------- */
 $("quests").addEventListener("click",e=>{
@@ -444,10 +452,31 @@ async function pullRemote(force){
   if(force||remote.updated>S.updated){ S=remote; saveLocal(); render(); return true; }
   return false;
 }
+/* ---------- coach plan (coach.json in the backup repo) ---------- */
+const COACH="ascend-coach-v1";
+let coach=null; try{ coach=JSON.parse(localStorage.getItem(COACH)); }catch(e){}
+function applyCoach(){
+  if(!coach||!coach.days) return;
+  const plan=coach.days[today()]; if(!Array.isArray(plan)) return;
+  const sig=today()+"#"+(coach.version||0);
+  if(S.coachSig===sig) return;
+  S.quests=plan.filter(q=>q&&q.id&&q.name).map(q=>({id:String(q.id),name:String(q.name),...(q.detail?{detail:String(q.detail)}:{})}));
+  S.coachNote=String((coach.notes&&coach.notes[today()])||coach.note||"");
+  S.coachSig=sig; syncClear(); save(); render();
+}
+async function loadCoach(){
+  if(!(cfg.repo&&cfg.token)) return;
+  try{ const f=await gh("coach.json"); if(!f) return;
+    coach=JSON.parse(unb64(f.content)); try{ localStorage.setItem(COACH,JSON.stringify(coach)); }catch(e){}
+    applyCoach(); }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ applyCoach(); loadCoach(); } });
 async function initBackup(){
   showStatus();
+  applyCoach();
   if(!(cfg.repo&&cfg.token)) return;
   try{ const got=await pullRemote(false); if(!got) push(); }catch(e){ push(); }
+  loadCoach();
 }
 /* backup sheet */
 function msg(t){ $("bMsg").textContent=t; }
