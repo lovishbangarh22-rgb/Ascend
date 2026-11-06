@@ -77,6 +77,9 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .empty{color:var(--muted);padding:12px 0}
 .qdetail{display:block;font-size:13px;font-weight:400;color:var(--ink);opacity:.8;margin-top:4px;line-height:1.45;white-space:pre-line}
 .quest.on .qdetail{opacity:.5}
+.quest.penalty{border-color:color-mix(in srgb,var(--crimson) 55%,transparent);background:color-mix(in srgb,var(--crimson) 12%,var(--glass-strong))}
+.quest.penalty .qname{color:var(--crimson)}
+.quest.penalty.on .qname{color:var(--muted)}
 .coach{margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--crimson) 14%,transparent),color-mix(in srgb,var(--ember) 8%,transparent));border:1px solid color-mix(in srgb,var(--crimson) 30%,transparent)}
 .coach b{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--crimson)}
 .coach p{margin:4px 0 0;font-size:14px;line-height:1.45;white-space:pre-line}
@@ -162,7 +165,6 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
   </section>
 
   <button class="ghost backup-btn" id="backupBtn" type="button">Backup</button>
-  <div class="foot">+10 XP per quest · +25 XP when every quest is done<br>Rank comes from fully done days in the last 60: D 5 · C 15 · B 30 · A 45 · S 57</div>
 </div>
 
 <div class="sheet" id="bsheet" hidden>
@@ -318,12 +320,12 @@ function render(){
   const k=today(), doneSet=new Set(S.log[k]||[]);
   $("quests").innerHTML = S.quests.length ? S.quests.map(q=>{
     const on=doneSet.has(q.id), s=questStreak(q.id), p=Math.round(questPct30(q.id)*100);
-    return `<button class="quest${on?" on":""}" type="button" data-id="${esc(q.id)}" aria-pressed="${on}">
+    return `<button class="quest${on?" on":""}${q.id.startsWith("penalty")?" penalty":""}" type="button" data-id="${esc(q.id)}" aria-pressed="${on}">
       <span class="box">${CHECK}</span>
       <span class="qname">${esc(q.name)}${q.detail?`<span class="qdetail">${esc(q.detail)}</span>`:""}<span class="qmeta">${s} day streak · ${p}% last 30 days</span><span class="qline"><i style="width:${p}%"></i></span></span>
       <span class="xpchip">${on?"Done":"+10 XP"}</span></button>`;
   }).join("") : `<div class="empty">No quests yet. Tap Edit to add your first one.</div>`;
-  $("coach").hidden=!S.coachNote; $("coachNote").textContent=S.coachNote||"";
+  $("coach").hidden=true;
   $("clear").innerHTML = S.clears[k] ? `<div class="clear">All quests done · +25 bonus XP</div>` : "";
 
   const t=parse(k), dow=(t.getDay()+6)%7, wkStart=addDays(t,-dow);
