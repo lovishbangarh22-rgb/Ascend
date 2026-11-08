@@ -75,6 +75,16 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 @keyframes up{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-28px)}}
 .clear{margin-top:12px;padding:12px;border-radius:16px;text-align:center;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--green),#20b2aa);box-shadow:0 6px 18px color-mix(in srgb,var(--green) 35%,transparent)}
 .empty{color:var(--muted);padding:12px 0}
+.food{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px}
+.food input{min-width:0;background:var(--glass-strong);border:1px solid var(--edge);color:var(--ink);font:500 16px var(--f);padding:10px 14px;border-radius:14px}
+.food input:focus{outline:none;border-color:var(--crimson)}
+.food .primary{padding:10px 16px}
+.foodlist{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.foodlist li{display:flex;align-items:center;gap:6px;font-size:13px;padding:5px 6px 5px 10px;border-radius:99px;background:var(--glass-strong);border:1px solid var(--edge);max-width:100%}
+.foodlist li span{overflow-wrap:anywhere}
+.foodlist li time{color:var(--muted);font-variant-numeric:tabular-nums}
+.foodlist button{all:unset;cursor:pointer;color:var(--muted);width:20px;height:20px;display:grid;place-items:center;border-radius:50%}
+.foodlist button:focus-visible{outline:2px solid var(--crimson)}
 .qdetail{display:block;font-size:13px;font-weight:400;color:var(--ink);opacity:.8;margin-top:4px;line-height:1.45;white-space:pre-line}
 .quest.on .qdetail{opacity:.5}
 .quest.penalty{border-color:color-mix(in srgb,var(--crimson) 55%,transparent);background:color-mix(in srgb,var(--crimson) 12%,var(--glass-strong))}
@@ -153,6 +163,11 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
   <section class="panel" aria-label="Today's quests">
     <div class="eyebrow"><span id="date">Daily quest</span><span class="dim">Resets in <span id="cd">--:--:--</span></span></div>
     <div class="qhead"><h2>Today's quests</h2><button class="ghost" id="editBtn" type="button">Edit</button></div>
+    <form class="food" id="foodForm" autocomplete="off">
+      <input id="foodIn" maxlength="120" placeholder="Ate or drank? e.g. 2 eggs" aria-label="What you ate or drank">
+      <button class="primary" type="submit">Add</button>
+    </form>
+    <ul class="foodlist" id="foodList"></ul>
     <div class="coach" id="coach" hidden><b>Coach</b><p id="coachNote"></p></div>
     <div class="quests" id="quests"></div>
     <div id="clear"></div>
@@ -240,6 +255,7 @@ function normalize(s){
     log:(s.log&&typeof s.log==="object")?JSON.parse(JSON.stringify(s.log)):{},
     clears:(s.clears&&typeof s.clears==="object")?{...s.clears}:{},
     start:typeof s.start==="string"?s.start:f.start,
+    food:(s.food&&typeof s.food==="object")?JSON.parse(JSON.stringify(s.food)):{},
     coachSig:typeof s.coachSig==="string"?s.coachSig:"", coachNote:typeof s.coachNote==="string"?s.coachNote:"",
     updated:Number(s.updated)||0};
 }
@@ -326,6 +342,8 @@ function render(){
       <span class="xpchip">${on?"Done":"+10 XP"}</span></button>`;
   }).join("") : `<div class="empty">No quests yet. Tap Edit to add your first one.</div>`;
   $("coach").hidden=true;
+  const fl=(S.food&&S.food[k])||[];
+  $("foodList").innerHTML=fl.map((f,i)=>`<li><time>${esc(f.t)}</time><span>${esc(f.x)}</span><button type="button" data-fdel="${i}" aria-label="Remove">×</button></li>`).join("");
   $("clear").innerHTML = S.clears[k] ? `<div class="clear">All quests done · +25 bonus XP</div>` : "";
 
   const t=parse(k), dow=(t.getDay()+6)%7, wkStart=addDays(t,-dow);
@@ -380,6 +398,17 @@ function levelUp(a,b,ra,rb){
   $("lvup").hidden=false; clearTimeout(lvTimer); lvTimer=setTimeout(()=>$("lvup").hidden=true,2600);
 }
 $("lvup").addEventListener("click",()=>$("lvup").hidden=true);
+
+/* food & drink log */
+$("foodForm").addEventListener("submit",e=>{
+  e.preventDefault(); const x=$("foodIn").value.trim(); if(!x) return;
+  const k=today(), n=new Date(); S.food=S.food||{}; (S.food[k]=S.food[k]||[]).push({t:pad(n.getHours())+":"+pad(n.getMinutes()),x});
+  $("foodIn").value=""; save(); render();
+});
+$("foodList").addEventListener("click",e=>{
+  const b=e.target.closest("[data-fdel]"); if(!b) return;
+  const k=today(); S.food[k].splice(+b.dataset.fdel,1); if(!S.food[k].length) delete S.food[k]; save(); render();
+});
 
 /* edit sheet */
 let armed=null;
