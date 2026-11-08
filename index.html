@@ -58,8 +58,24 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .ghost{background:var(--glass-strong);border:1px solid var(--edge);color:var(--crimson);font:600 15px var(--f);padding:7px 16px;border-radius:99px;cursor:pointer}
 .ghost:focus-visible,.quest:focus-visible,.primary:focus-visible{outline:3px solid color-mix(in srgb,var(--blue) 55%,transparent);outline-offset:2px}
 .quests{display:grid;gap:8px}
-.quest{all:unset;box-sizing:border-box;display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:center;padding:13px 14px;border-radius:18px;background:var(--glass-strong);border:1px solid var(--edge);cursor:pointer;position:relative;transition:transform .15s,background .25s}
-.quest:active{transform:scale(.97)}
+.quest{box-sizing:border-box;display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-radius:18px;background:var(--glass-strong);border:1px solid var(--edge);position:relative;transition:transform .33s cubic-bezier(.5,0,.75,0),opacity .33s,background .25s}
+.quest.leaving{transform:translateX(115%);opacity:0}
+.quest .box{all:unset;box-sizing:border-box;cursor:pointer;width:28px;height:28px;border-radius:50%;border:2px solid var(--muted);display:grid;place-items:center;transition:all .3s cubic-bezier(.2,1.4,.4,1)}
+.quest .box:hover{border-color:var(--green)}
+.quest .box:active{transform:scale(.85)}
+.quest.leaving .box{border-color:var(--green);background:var(--green)}
+.quest.leaving .box svg{opacity:1;transform:scale(1)}
+.qmain{all:unset;cursor:pointer;min-width:0;display:block}
+.qmain:focus-visible,.quest .box:focus-visible{outline:2px solid var(--crimson);outline-offset:3px;border-radius:8px}
+.qmore{display:none}
+.quest.open .qmore{display:block}
+.quest .qname::after{content:"›";display:inline-block;margin-left:6px;color:var(--muted);transition:transform .2s}
+.quest.open .qname::after{transform:rotate(90deg)}
+.donebox{margin-top:10px;font-size:13px;color:var(--muted)}
+.donebox summary{cursor:pointer;padding:6px 2px;font-weight:600}
+.donerow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 2px;border-top:1px solid var(--hair)}
+.donerow span{color:var(--green);overflow-wrap:anywhere;min-width:0}
+.donerow button{all:unset;cursor:pointer;color:var(--crimson);font-weight:600;padding:2px 6px}
 .box{width:28px;height:28px;border-radius:50%;border:2px solid var(--hair);display:grid;place-items:center;transition:all .3s cubic-bezier(.2,1.4,.4,1)}
 .box svg{opacity:0;transform:scale(.4);transition:all .3s cubic-bezier(.2,1.4,.4,1)}
 .quest.on .box{border-color:var(--green);background:var(--green);box-shadow:0 4px 12px color-mix(in srgb,var(--green) 45%,transparent)}
@@ -71,7 +87,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .qline i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--crimson),var(--ember))}
 .xpchip{font-size:12px;font-weight:600;color:var(--crimson);background:color-mix(in srgb,var(--crimson) 13%,transparent);padding:4px 9px;border-radius:99px}
 .quest.on .xpchip{color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)}
-.float{position:absolute;right:16px;top:2px;font-weight:700;font-size:14px;color:var(--green);pointer-events:none;animation:up 1s ease-out forwards}
+.float{position:absolute;right:112px;top:64px;z-index:2;font-weight:700;font-size:14px;color:var(--green);pointer-events:none;animation:up 1s ease-out forwards}
 @keyframes up{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-28px)}}
 .clear{margin-top:12px;padding:12px;border-radius:16px;text-align:center;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--green),#20b2aa);box-shadow:0 6px 18px color-mix(in srgb,var(--green) 35%,transparent)}
 .empty{color:var(--muted);padding:12px 0}
@@ -160,7 +176,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
     </div>
   </section>
 
-  <section class="panel" aria-label="Today's quests">
+  <section class="panel" id="qpanel" aria-label="Today's quests">
     <div class="eyebrow"><span id="date">Daily quest</span><span class="dim">Resets in <span id="cd">--:--:--</span></span></div>
     <div class="qhead"><h2>Today's quests</h2><button class="ghost" id="editBtn" type="button">Edit</button></div>
     <form class="food" id="foodForm" autocomplete="off">
@@ -334,13 +350,18 @@ function render(){
   const now=new Date();
   $("date").textContent=now.toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"});
   const k=today(), doneSet=new Set(S.log[k]||[]);
-  $("quests").innerHTML = S.quests.length ? S.quests.map(q=>{
-    const on=doneSet.has(q.id), s=questStreak(q.id), p=Math.round(questPct30(q.id)*100);
-    return `<button class="quest${on?" on":""}${q.id.startsWith("penalty")?" penalty":""}" type="button" data-id="${esc(q.id)}" aria-pressed="${on}">
-      <span class="box">${CHECK}</span>
-      <span class="qname">${esc(q.name)}${q.detail?`<span class="qdetail">${esc(q.detail)}</span>`:""}<span class="qmeta">${s} day streak · ${p}% last 30 days</span><span class="qline"><i style="width:${p}%"></i></span></span>
-      <span class="xpchip">${on?"Done":"+10 XP"}</span></button>`;
-  }).join("") : `<div class="empty">No quests yet. Tap Edit to add your first one.</div>`;
+  const pending=S.quests.filter(q=>!doneSet.has(q.id)), done=S.quests.filter(q=>doneSet.has(q.id));
+  $("quests").innerHTML = (S.quests.length ? (pending.length ? pending.map(q=>{
+    const st=questStreak(q.id), p=Math.round(questPct30(q.id)*100), open=openQ.has(q.id), pen=q.id.startsWith("penalty");
+    return `<div class="quest${pen?" penalty":""}${open?" open":""}" data-id="${esc(q.id)}">
+      <button class="box" type="button" data-act="done" aria-label="Complete ${esc(q.name)}">${CHECK}</button>
+      <button class="qmain" type="button" data-act="open" aria-expanded="${open}">
+        <span class="qname">${esc(q.name)}</span>
+        <span class="qmore">${q.detail?`<span class="qdetail">${esc(q.detail)}</span>`:""}<span class="qmeta">${st} day streak · ${p}% last 30 days</span></span>
+      </button>
+      <span class="xpchip">${pen?"Penalty":"+10 XP"}</span></div>`;
+  }).join("") : "") : `<div class="empty">No quests yet. Tap Edit to add your first one.</div>`)
+  + (done.length ? `<details class="donebox"><summary>Done today · ${done.length}</summary>${done.map(q=>`<div class="donerow"><span>${esc(q.name)}</span><button type="button" data-act="undo" data-id="${esc(q.id)}">Undo</button></div>`).join("")}</details>` : "");
   $("coach").hidden=true;
   const fl=(S.food&&S.food[k])||[];
   $("foodList").innerHTML=fl.map((f,i)=>`<li><time>${esc(f.t)}</time><span>${esc(f.x)}</span><button type="button" data-fdel="${i}" aria-label="Remove">×</button></li>`).join("");
@@ -372,24 +393,37 @@ let lastDay=today();
 setInterval(()=>{ tick(); if(today()!==lastDay){ lastDay=today(); applyCoach(); render(); } },1000);
 
 /* ---------- actions ---------- */
-$("quests").addEventListener("click",e=>{
-  const b=e.target.closest(".quest"); if(!b) return;
-  const id=b.dataset.id, k=today();
+const openQ=new Set();
+function toggleQuest(id){
+  const k=today();
   const before=levelInfo(totalXP()).L, rBefore=rankOf(clearedRecent());
   const arr=S.log[k]||(S.log[k]=[]); const i=arr.indexOf(id);
   const adding=i<0;
   if(adding) arr.push(id); else arr.splice(i,1);
   if(!arr.length) delete S.log[k];
   const wasClear=!!S.clears[k]; syncClear(); const nowClear=!!S.clears[k];
-  save(); render();
+  openQ.delete(id); save(); render();
   if(adding){
-    const nb=document.querySelector(`.quest[data-id="${CSS.escape(id)}"]`);
-    if(nb){ const f=document.createElement("span"); f.className="float"; f.textContent=nowClear&&!wasClear?"+35 XP":"+10 XP"; nb.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    const f=document.createElement("span"); f.className="float"; f.textContent=nowClear&&!wasClear?"+35 XP":"+10 XP";
+    $("qpanel").appendChild(f); setTimeout(()=>f.remove(),1000);
     if(navigator.vibrate) try{navigator.vibrate(15)}catch(_){}
   }
   const after=levelInfo(totalXP()).L, rAfter=rankOf(clearedRecent());
   const rankUp=RANKS.indexOf(rAfter)>RANKS.indexOf(rBefore);
   if(after>before||rankUp) levelUp(before,after,rankUp?rBefore:null,rAfter);
+}
+$("quests").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-act]"); if(!btn) return;
+  const act=btn.dataset.act;
+  if(act==="undo"){ toggleQuest(btn.dataset.id); return; }
+  const card=btn.closest(".quest"); if(!card) return; const id=card.dataset.id;
+  if(act==="open"){ openQ.has(id)?openQ.delete(id):openQ.add(id); render(); return; }
+  if(act==="done"){
+    if(card.classList.contains("leaving")) return;
+    card.classList.add("leaving");
+    const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(()=>toggleQuest(id), reduce?0:330);
+  }
 });
 let lvTimer;
 function levelUp(a,b,ra,rb){
