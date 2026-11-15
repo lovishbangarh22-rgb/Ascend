@@ -34,7 +34,15 @@ body::before{content:"";position:fixed;inset:-20%;z-index:0;pointer-events:none;
 .eyebrow .dim{text-transform:none;font-weight:500}
 h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 
-.status{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin-top:12px}
+.status3{display:grid;grid-template-columns:64px minmax(0,1fr) 96px;gap:12px;align-items:center;margin-top:12px}
+.leftcol{display:grid;gap:6px;justify-items:stretch}
+.leftcol .rank{width:64px;height:64px;font-size:32px;border-radius:20px;margin-bottom:4px}
+.mstat{background:var(--glass-strong);border:1px solid var(--edge);border-radius:12px;padding:5px 6px;text-align:center;line-height:1.1}
+.mstat b{display:block;font-family:var(--f-round);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.mstat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.hero{display:grid;justify-items:center;gap:2px}
+.hero svg{width:96px;height:136px;overflow:visible}
+.hstage{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--rk,var(--muted))}
 .rank{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;color:#fff;font-family:var(--f-round);font-weight:800;font-size:38px;
   background:linear-gradient(145deg,color-mix(in srgb,var(--rk) 75%,#fff),var(--rk));box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 0 0 3px color-mix(in srgb,var(--rk) 35%,transparent),0 0 28px color-mix(in srgb,var(--rk) 65%,transparent);animation:aura 3s ease-in-out infinite alternate}
 @keyframes aura{to{box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 0 0 5px color-mix(in srgb,var(--rk) 25%,transparent),0 0 40px color-mix(in srgb,var(--rk) 80%,transparent)}}
@@ -158,21 +166,25 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 <div class="wrap" id="app">
   <section class="panel" aria-label="Status">
     <div class="eyebrow"><span>Status</span><span class="dim" id="sync">Loading…</span></div>
-    <div class="status">
-      <div class="rank" id="rank"><span id="rankL" style="position:relative">E</span></div>
+    <div class="status3">
+      <div class="leftcol">
+        <div class="rank" id="rank"><span id="rankL" style="position:relative">E</span></div>
+        <div class="mstat"><b id="streak">0</b><span>Streak</span></div>
+        <div class="mstat"><b id="best">0</b><span>Best</span></div>
+        <div class="mstat"><b id="days">0</b><span>Active</span></div>
+      </div>
       <div class="lvl">
         <div class="big"><small>LV</small><span id="lv">1</span></div>
         <div class="title" id="rtitle">Rank E · Awakened</div>
         <div class="xpbar"><i id="xpfill" style="width:0"></i></div>
-        <div class="xptext"><span id="xpnow">0 / 60 XP</span><span id="xptot">Total 0</span></div>
+        <div class="xptext"><span id="xpnow">0 / 60 XP</span><span id="xptot" hidden></span></div>
         <div class="rbar" aria-hidden="true"><i id="rfill" style="width:0"></i></div>
         <div class="rnext" id="rnext"></div>
       </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><b id="streak">0</b><span>Day streak</span></div>
-      <div class="stat"><b id="best">0</b><span>Best streak</span></div>
-      <div class="stat"><b id="days">0</b><span>Days active</span></div>
+      <div class="hero" aria-label="Your character">
+        <svg id="heroSvg" viewBox="0 0 120 170" role="img" aria-hidden="true"></svg>
+        <span class="hstage" id="hstage">Soft</span>
+      </div>
     </div>
   </section>
 
@@ -302,6 +314,40 @@ function totalXP(){
 }
 function levelInfo(xp){ let L=1,need=60; while(xp>=need){ xp-=need; L++; need=50+10*L; } return {L,into:xp,need}; }
 const WINDOW=60;
+/* evolving fighter: p 0 = soft, 1 = monster */
+const STAGES=["Soft","Waking","Forged","Hardened","Shredded","Monster"];
+function drawHero(p,col){
+  const L=(a,b)=>a+(b-a)*p, cx=60;
+  const sh=L(26,46), ch=L(25,40), w=L(31,20), hip=L(27,24), arm=L(7,15), trap=L(0,9), belly=L(10,-2), abs=Math.max(0,(p-.35)/.4), aura=Math.max(0,(p-.75)/.25);
+  const ab=Math.min(1,abs);
+  let g=`<defs><radialGradient id="hg" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="${col}" stop-opacity="${.18+aura*.35}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></radialGradient></defs>`;
+  g+=`<ellipse cx="60" cy="85" rx="${58}" ry="${84}" fill="url(#hg)"/>`;
+  const st=`stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"`, fill=`fill="color-mix(in srgb, ${col} 22%, var(--bg))"`;
+  // legs + shorts
+  g+=`<path d="M${cx-hip+3},126 L${cx-14},168 L${cx-3},168 L${cx},134 L${cx+3},168 L${cx+14},168 L${cx+hip-3},126 Z" ${fill} ${st}/>`;
+  g+=`<path d="M${cx-hip},124 L${cx-hip-1},146 L${cx-2},146 L${cx},136 L${cx+2},146 L${cx+hip+1},146 L${cx+hip},124 Z" fill="#14141c" ${st}/>`;
+  // arms (upper + fore)
+  for(const s of [-1,1]){
+    const x0=cx+s*(sh-3), ex=cx+s*(sh+L(4,9)), wx=cx+s*(sh+L(2,7));
+    g+=`<path d="M${x0},52 L${ex},90 L${wx},120" fill="none" stroke="${col}" stroke-width="${arm+3}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    g+=`<path d="M${x0},52 L${ex},90 L${wx},120" fill="none" stroke="color-mix(in srgb, ${col} 22%, var(--bg))" stroke-width="${arm}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    g+=`<circle cx="${cx+s*(sh-2)}" cy="53" r="${L(6,12)}" ${fill} ${st}/>`; // delt
+  }
+  // torso
+  g+=`<path d="M${cx-sh+4},46 Q${cx-ch-2},62 ${cx-ch+2},80 Q${cx-w-belly},100 ${cx-w},112 L${cx-hip},126 L${cx+hip},126 L${cx+w},112 Q${cx+w+belly},100 ${cx+ch-2},80 Q${cx+ch+2},62 ${cx+sh-4},46 Q${cx},${40-trap*.4} ${cx-sh+4},46 Z" ${fill} ${st}/>`;
+  // traps + neck + head
+  g+=`<path d="M${cx-8-trap},46 Q${cx},${36-trap*.6} ${cx+8+trap},46" fill="none" ${st}/>`;
+  g+=`<rect x="${cx-5}" y="30" width="10" height="12" rx="4" ${fill} ${st}/>`;
+  g+=`<circle cx="${cx}" cy="20" r="11" ${fill} ${st}/>`;
+  g+=`<path d="M${cx-11},17 Q${cx-6},4 ${cx},9 Q${cx+5},3 ${cx+11},15" fill="#14141c"/>`;
+  // pecs + abs
+  g+=`<path d="M${cx-ch+6},74 Q${cx-ch/2},${78+L(2,4)} ${cx-1},72 M${cx+1},72 Q${cx+ch/2},${78+L(2,4)} ${cx+ch-6},74" fill="none" stroke="${col}" stroke-width="1.5" opacity="${.3+ab*.7}"/>`;
+  if(ab>0){ for(let r=0;r<3;r++) for(const s of [-1,1]) g+=`<rect x="${s<0?cx-10:cx+1.5}" y="${84+r*9}" width="8.5" height="7" rx="3" fill="none" stroke="${col}" stroke-width="1.3" opacity="${ab}"/>`;
+    g+=`<path d="M${cx-w+3},96 Q${cx-w+6},110 ${cx-8},118 M${cx+w-3},96 Q${cx+w-6},110 ${cx+8},118" fill="none" stroke="${col}" stroke-width="1.2" opacity="${ab*.8}"/>`; }
+  else g+=`<path d="M${cx-w+6},104 Q${cx},${112+belly*.6} ${cx+w-6},104" fill="none" stroke="${col}" stroke-width="1.2" opacity=".5"/>`;
+  const svg=document.getElementById("heroSvg"); if(svg) svg.innerHTML=g;
+  const hs=document.getElementById("hstage"); if(hs){ hs.textContent=STAGES[Math.min(5,Math.floor(p*5.999))]; hs.parentElement.style.setProperty("--rk",col); }
+}
 function clearedRecent(){ const t=parse(today()); let n=0; for(let i=0;i<WINDOW;i++) if(S.clears[key(addDays(t,-i))]) n++; return n; }
 function rankOf(n){ let r=RANKS[0]; for(const x of RANKS) if(n>=x.min) r=x; return r; }
 function runBack(has){ let d=parse(today()); if(!has(key(d))) d=addDays(d,-1); let n=0; while(has(key(d))){ n++; d=addDays(d,-1); } return n; }
@@ -340,9 +386,9 @@ function render(){
   const lo=rk.min, hi=nx?nx.min:WINDOW;
   $("rfill").style.width=Math.min(100,(cr-lo)/(hi-lo)*100)+"%";
   $("rfill").style.setProperty("--rk",rk.c);
-  $("rnext").innerHTML = nx
-    ? `<span>Rank ${rk.r} → ${nx.r}: <b>${cr-lo} / ${hi-lo}</b> days</span><span><b>${nx.min-cr}</b> to go</span>`
-    : `<span>Rank S: <b>${cr} / ${WINDOW}</b> days</span><span>Stay above ${rk.min}</span>`;
+  $("rnext").innerHTML = nx ? `<span><b>${nx.min-cr}</b> days to Rank ${nx.r}</span>` : `<span>Rank S · stay above ${rk.min}</span>`;
+  const ri=RANKS.indexOf(rk), frac=Math.max(0,Math.min(1,(cr-lo)/(hi-lo)));
+  drawHero(Math.min(1,(ri+(nx?frac:1))/5), rk.c);
   $("streak").textContent=streak();
   $("best").textContent=bestStreak();
   $("days").textContent=Object.keys(S.log).filter(k=>(S.log[k]||[]).length).length;
