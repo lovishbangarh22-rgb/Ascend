@@ -42,7 +42,9 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .mstat b{display:block;font-family:var(--f-round);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
 .mstat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .hero{display:grid;justify-items:center;gap:2px}
-.hero img{width:128px;height:190px;object-fit:cover;object-position:top;border-radius:14px;border:1px solid var(--edge);transition:filter .6s,box-shadow .6s}
+.hero .frame{position:relative;width:128px;height:150px;margin-top:40px;border-radius:16px;border:1px solid color-mix(in srgb,var(--rk,#8e8e93) 55%,var(--edge));
+  background:radial-gradient(80% 70% at 50% 35%,color-mix(in srgb,var(--rk,#8e8e93) 55%,#0b0b12),#0b0b12 75%);box-shadow:0 0 18px color-mix(in srgb,var(--rk,#8e8e93) 45%,transparent);transition:box-shadow .6s}
+.hero .frame img{position:absolute;left:50%;bottom:0;height:190px;width:auto;max-width:none;transform:translateX(-50%);filter:drop-shadow(0 6px 10px rgba(0,0,0,.55));pointer-events:none}
 .hstage{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--rk,var(--muted))}
 .rank{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;color:#fff;font-family:var(--f-round);font-weight:800;font-size:38px;
   background:linear-gradient(145deg,color-mix(in srgb,var(--rk) 75%,#fff),var(--rk));box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 0 0 3px color-mix(in srgb,var(--rk) 35%,transparent),0 0 28px color-mix(in srgb,var(--rk) 65%,transparent);animation:aura 3s ease-in-out infinite alternate}
@@ -183,7 +185,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
         <div class="rnext" id="rnext"></div>
       </div>
       <div class="hero" aria-label="Your character">
-        <img id="heroImg" src="img/s0.jpg" alt="">
+        <div class="frame"><img id="heroImg" src="img/p0.webp" alt=""></div>
         <span class="hstage" id="hstage">Soft</span>
       </div>
     </div>
@@ -324,10 +326,11 @@ function smooth(pts){ // closed Catmull-Rom -> cubic bezier
     d+=`C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`; }
   return d+"Z";
 }
-const HERO=["img/s0.jpg","img/s1.jpg","img/s2.jpg","img/s3.jpg","img/s4.jpg","img/s5.jpg"]; // E..S
+const HERO=["img/p0.webp","img/p1.webp","img/p2.webp","img/p3.webp","img/p4.webp","img/p5.webp"]; // E..S
 function drawHero(p,col){
   const i=Math.min(5,Math.floor(p*5.999)), h=HERO[i], im=document.getElementById("heroImg");
-  if(im){ if(!im.src.endsWith(h)) im.src=h; im.style.boxShadow=`0 0 ${10+i*4}px ${col}`; }
+  if(im){ if(!im.src.endsWith(h)) im.src=h; }
+  const fr=im&&im.closest(".hero"); if(fr) fr.style.setProperty("--rk",col);
   const panel=im&&im.closest(".panel"); if(panel) panel.style.setProperty("--rk",col);
   const hs=document.getElementById("hstage"); if(hs){ hs.textContent=STAGES[i]; hs.parentElement.style.setProperty("--rk",col); }
 }
