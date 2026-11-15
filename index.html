@@ -42,9 +42,8 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 .mstat b{display:block;font-family:var(--f-round);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
 .mstat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .hero{display:grid;justify-items:center;gap:2px}
-.hero .frame{position:relative;width:128px;height:150px;margin-top:40px;border-radius:16px;border:1px solid color-mix(in srgb,var(--rk,#8e8e93) 55%,var(--edge));
-  background:radial-gradient(80% 70% at 50% 35%,color-mix(in srgb,var(--rk,#8e8e93) 55%,#0b0b12),#0b0b12 75%);box-shadow:0 0 18px color-mix(in srgb,var(--rk,#8e8e93) 45%,transparent);transition:box-shadow .6s}
-.hero .frame img{position:absolute;left:50%;bottom:0;height:190px;width:auto;max-width:none;transform:translateX(-50%);filter:drop-shadow(0 6px 10px rgba(0,0,0,.55));pointer-events:none}
+.hero .frame{position:relative;width:128px;height:170px;margin-top:20px}
+.hero .frame img{position:absolute;left:50%;bottom:0;height:200px;width:auto;max-width:none;transform:translateX(-50%);filter:drop-shadow(0 0 10px color-mix(in srgb,var(--rk,#8e8e93) 70%,transparent)) drop-shadow(0 6px 10px rgba(0,0,0,.5));pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 82%,transparent);mask-image:linear-gradient(to bottom,#000 82%,transparent)}
 .hstage{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--rk,var(--muted))}
 .rank{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;color:#fff;font-family:var(--f-round);font-weight:800;font-size:38px;
   background:linear-gradient(145deg,color-mix(in srgb,var(--rk) 75%,#fff),var(--rk));box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 0 0 3px color-mix(in srgb,var(--rk) 35%,transparent),0 0 28px color-mix(in srgb,var(--rk) 65%,transparent);animation:aura 3s ease-in-out infinite alternate}
