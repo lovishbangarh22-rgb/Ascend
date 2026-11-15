@@ -34,14 +34,15 @@ body::before{content:"";position:fixed;inset:-20%;z-index:0;pointer-events:none;
 .eyebrow .dim{text-transform:none;font-weight:500}
 h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 
-.status3{display:grid;grid-template-columns:64px minmax(0,1fr) 96px;gap:12px;align-items:center;margin-top:12px}
+.status3{display:grid;grid-template-columns:64px minmax(0,1fr) 128px;gap:12px;align-items:center;margin-top:12px}
 .leftcol{display:grid;gap:6px;justify-items:stretch}
+#statusPanel{background-image:radial-gradient(70% 60% at 85% 40%,color-mix(in srgb,var(--rk,#8e8e93) 22%,transparent),transparent 70%);transition:background-image .6s}
 .leftcol .rank{width:64px;height:64px;font-size:32px;border-radius:20px;margin-bottom:4px}
 .mstat{background:var(--glass-strong);border:1px solid var(--edge);border-radius:12px;padding:5px 6px;text-align:center;line-height:1.1}
 .mstat b{display:block;font-family:var(--f-round);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
 .mstat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .hero{display:grid;justify-items:center;gap:2px}
-.hero img{width:96px;height:128px;object-fit:cover;object-position:top;border-radius:14px;border:1px solid var(--edge);transition:filter .6s,box-shadow .6s}
+.hero img{width:128px;height:190px;object-fit:cover;object-position:top;border-radius:14px;border:1px solid var(--edge);transition:filter .6s,box-shadow .6s}
 .hstage{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--rk,var(--muted))}
 .rank{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;color:#fff;font-family:var(--f-round);font-weight:800;font-size:38px;
   background:linear-gradient(145deg,color-mix(in srgb,var(--rk) 75%,#fff),var(--rk));box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 0 0 3px color-mix(in srgb,var(--rk) 35%,transparent),0 0 28px color-mix(in srgb,var(--rk) 65%,transparent);animation:aura 3s ease-in-out infinite alternate}
@@ -164,7 +165,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
 </style>
 
 <div class="wrap" id="app">
-  <section class="panel" aria-label="Status">
+  <section class="panel" id="statusPanel" aria-label="Status">
     <div class="eyebrow"><span>Status</span><span class="dim" id="sync">Loading…</span></div>
     <div class="status3">
       <div class="leftcol">
@@ -182,7 +183,7 @@ h1,h2{margin:0;text-wrap:balance;font-family:var(--f);letter-spacing:-.02em}
         <div class="rnext" id="rnext"></div>
       </div>
       <div class="hero" aria-label="Your character">
-        <img id="heroImg" src="img/hero-c.jpg" alt="">
+        <img id="heroImg" src="img/s0.jpg" alt="">
         <span class="hstage" id="hstage">Soft</span>
       </div>
     </div>
@@ -323,16 +324,11 @@ function smooth(pts){ // closed Catmull-Rom -> cubic bezier
     d+=`C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`; }
   return d+"Z";
 }
-const HERO=[ // per rank E..S: image + look (only 3 artworks so far)
-  {src:"img/hero-c.jpg",f:"grayscale(1) brightness(.6) contrast(1.1)"},
-  {src:"img/hero-c.jpg",f:"grayscale(.55) brightness(.8)"},
-  {src:"img/hero-c.jpg",f:"none"},
-  {src:"img/hero-b.jpg",f:"none"},
-  {src:"img/hero-a.jpg",f:"none"},
-  {src:"img/hero-a.jpg",f:"sepia(.35) saturate(1.4) brightness(1.08)"}];
+const HERO=["img/s0.jpg","img/s1.jpg","img/s2.jpg","img/s3.jpg","img/s4.jpg","img/s5.jpg"]; // E..S
 function drawHero(p,col){
   const i=Math.min(5,Math.floor(p*5.999)), h=HERO[i], im=document.getElementById("heroImg");
-  if(im){ if(!im.src.endsWith(h.src)) im.src=h.src; im.style.filter=h.f; im.style.boxShadow=`0 0 ${8+i*4}px ${col}`; }
+  if(im){ if(!im.src.endsWith(h)) im.src=h; im.style.boxShadow=`0 0 ${10+i*4}px ${col}`; }
+  const panel=im&&im.closest(".panel"); if(panel) panel.style.setProperty("--rk",col);
   const hs=document.getElementById("hstage"); if(hs){ hs.textContent=STAGES[i]; hs.parentElement.style.setProperty("--rk",col); }
 }
 
